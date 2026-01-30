@@ -1,0 +1,10 @@
+footer {
+  grid-row: 3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--color-black);
+  color: var(--color-white);
+  padding: 1rem;
+  font-size: 14px;
+}
