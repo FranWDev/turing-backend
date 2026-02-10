@@ -60,6 +60,20 @@ public class ProductController {
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @Operation(summary = "Buscar productos por nombre",
+               description = "Devuelve una lista paginada de productos que coincidan con el nombre especificado (búsqueda parcial sin distinción de mayúsculas). [Rol requerido: USER]")
+    @ApiResponse(responseCode = "200", description = "Lista de productos encontrados",
+                 content = @Content(mediaType = "application/json",
+                 schema = @Schema(implementation = ProductResponseDTO.class)))
+    @GetMapping("/search")
+    public ResponseEntity<Page<ProductResponseDTO>> searchProductsByName(
+            @Parameter(description = "Nombre o parte del nombre del producto a buscar", example = "leche")
+            @RequestParam String name,
+            Pageable pageable) {
+        return ResponseEntity.ok(productService.findByName(name, pageable));
+    }
+
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
     @Operation(summary = "Obtener un producto por ID",
                description = "Devuelve la información de un producto específico según su ID. [Rol requerido: USER]")
     @ApiResponses({

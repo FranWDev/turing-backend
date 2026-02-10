@@ -85,6 +85,12 @@ public class ProductService {
                 .map(productMapper::toResponseDTO);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> findByName(String namePart, Pageable pageable) {
+        return repository.findByNameContainingIgnoreCase(namePart, pageable)
+                .map(productMapper::toResponseDTO);
+    }
+
     @CacheEvict(value = { "products", "product" }, allEntries = true)
     @ProductAuditable(action = "CREATE_PRODUCT")
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
