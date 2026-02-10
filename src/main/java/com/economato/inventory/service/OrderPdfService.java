@@ -66,7 +66,7 @@ public class OrderPdfService {
                 .setTextAlignment(TextAlignment.LEFT)
                 .setMarginBottom(12);
 
-        Paragraph status = new Paragraph(sanitizePdfText(order.getStatus() == null ? "" : order.getStatus()))
+        Paragraph status = new Paragraph(sanitizePdfText(translateStatusToEs(order.getStatus())))
                 .setFont(boldFont)
                 .setFontSize(10)
                 .setFontColor(ColorConstants.WHITE)
@@ -94,9 +94,8 @@ public class OrderPdfService {
                 .setMarginBottom(16);
 
         addInfoRow(infoTable, "Usuario", order.getUserName(), boldFont, regularFont);
-        addInfoRow(infoTable, "Usuario ID", order.getUserId() == null ? "" : "#" + order.getUserId(), boldFont, regularFont);
         addInfoRow(infoTable, "Fecha", order.getOrderDate() == null ? "" : order.getOrderDate().format(DATE_FORMAT), boldFont, regularFont);
-        addInfoRow(infoTable, "Estado", order.getStatus(), boldFont, regularFont);
+        addInfoRow(infoTable, "Estado", translateStatusToEs(order.getStatus()), boldFont, regularFont);
 
         document.add(infoTable);
     }
@@ -216,5 +215,20 @@ public class OrderPdfService {
             return "";
         }
         return value.replaceAll("[^\\u0009\\u000A\\u000D\\u0020-\\u00FF]", "");
+    }
+
+    private String translateStatusToEs(String status) {
+        if (status == null) {
+            return "";
+        }
+        return switch (status.trim().toUpperCase()) {
+            case "CREATED" -> "CREADO";
+            case "PENDING" -> "PENDIENTE";
+            case "REVIEW" -> "EN REVISION";
+            case "CONFIRMED" -> "CONFIRMADO";
+            case "INCOMPLETE" -> "INCOMPLETO";
+            case "CANCELLED" -> "CANCELADO";
+            default -> status;
+        };
     }
 }
