@@ -33,14 +33,14 @@ import com.itextpdf.layout.properties.UnitValue;
 @Service
 public class RecipePdfService {
 
-    private static final Color PRIMARY_COLOR = new DeviceRgb(184, 75, 68); // #b84b44
-    private static final Color SECONDARY_COLOR = new DeviceRgb(160, 61, 55); // #a03d37
-    private static final Color LIGHT_GRAY = new DeviceRgb(249, 250, 251); // #f9fafb
-    private static final Color BORDER_COLOR = new DeviceRgb(229, 231, 235); // #e5e7eb
-    private static final Color TEXT_GRAY = new DeviceRgb(107, 114, 128); // #6b7280
-    private static final Color ALLERGEN_BG = new DeviceRgb(254, 242, 242); // #fef2f2
-    private static final Color ALLERGEN_TEXT = new DeviceRgb(220, 38, 38); // #dc2626
-    private static final Color GREEN_TEXT = new DeviceRgb(16, 185, 129); // #10b981
+    private static final Color PRIMARY_COLOR = new DeviceRgb(184, 75, 68);
+    private static final Color SECONDARY_COLOR = new DeviceRgb(160, 61, 55);
+    private static final Color LIGHT_GRAY = new DeviceRgb(249, 250, 251);
+    private static final Color BORDER_COLOR = new DeviceRgb(229, 231, 235);
+    private static final Color TEXT_GRAY = new DeviceRgb(107, 114, 128);
+    private static final Color ALLERGEN_BG = new DeviceRgb(254, 242, 242);
+    private static final Color ALLERGEN_TEXT = new DeviceRgb(220, 38, 38);
+    private static final Color GREEN_TEXT = new DeviceRgb(16, 185, 129);
 
     public byte[] generateRecipePdf(RecipeResponseDTO recipe) throws Exception {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -55,8 +55,8 @@ public class RecipePdfService {
 
         addHeader(document, sanitizePdfText(recipe.getName()), boldFont);
 
-                if (recipe.getPresentation() != null && !recipe.getPresentation().isEmpty()) {
-                        addSection(document, "Presentación", sanitizePdfText(recipe.getPresentation()), boldFont, regularFont);
+        if (recipe.getPresentation() != null && !recipe.getPresentation().isEmpty()) {
+            addSection(document, "Presentación", sanitizePdfText(recipe.getPresentation()), boldFont, regularFont);
         }
 
         if (recipe.getComponents() != null && !recipe.getComponents().isEmpty()) {
@@ -65,8 +65,8 @@ public class RecipePdfService {
 
         addCostSection(document, recipe.getTotalCost(), boldFont, regularFont);
 
-                if (recipe.getElaboration() != null && !recipe.getElaboration().isEmpty()) {
-                        addElaborationSection(document, sanitizePdfText(recipe.getElaboration()), boldFont, regularFont);
+        if (recipe.getElaboration() != null && !recipe.getElaboration().isEmpty()) {
+            addElaborationSection(document, sanitizePdfText(recipe.getElaboration()), boldFont, regularFont);
         }
 
         addAllergensSection(document, recipe.getAllergens(), boldFont, regularFont);
@@ -127,7 +127,7 @@ public class RecipePdfService {
         table.addHeaderCell(createHeaderCell("Subtotal", boldFont));
 
         for (RecipeComponentResponseDTO component : components) {
-                        table.addCell(createDataCell(sanitizePdfText(component.getProductName()), regularFont));
+            table.addCell(createDataCell(sanitizePdfText(component.getProductName()), regularFont));
             table.addCell(createDataCell(String.format("%.2f", component.getQuantity()), regularFont));
             table.addCell(createDataCell(String.format("%.2f €", component.getSubtotal()), regularFont));
         }
@@ -291,11 +291,11 @@ public class RecipePdfService {
         return steps.isEmpty() ? List.of(elaboration) : steps;
     }
 
-        private String sanitizePdfText(String value) {
-                if (value == null) {
-                        return "";
-                }
-                // Keep printable Latin-1; strip unsupported characters (e.g., emoji)
-                return value.replaceAll("[^\\u0009\\u000A\\u000D\\u0020-\\u00FF]", "");
+    private String sanitizePdfText(String value) {
+        if (value == null) {
+            return "";
         }
+
+        return value.replaceAll("[^\\u0009\\u000A\\u000D\\u0020-\\u00FF]", "");
+    }
 }

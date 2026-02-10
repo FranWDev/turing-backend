@@ -91,6 +91,13 @@ public class ProductService {
                 .map(productMapper::toResponseDTO);
     }
 
+    @Transactional(readOnly = true)
+    public List<ProductResponseDTO> findAllForExport() {
+        return repository.findAll().stream()
+                .map(productMapper::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
     @CacheEvict(value = { "products", "product" }, allEntries = true)
     @ProductAuditable(action = "CREATE_PRODUCT")
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
