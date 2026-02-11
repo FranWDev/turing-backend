@@ -44,10 +44,10 @@ public interface RecipeRepository extends JpaRepository<Recipe, Integer> {
                         "WHERE r.totalCost < :maxCost")
         List<Recipe> findByTotalCostLessThanWithDetails(@Param("maxCost") BigDecimal maxCost);
 
-        @EntityGraph(attributePaths = { "components", "components.product", "allergens" })
+        @EntityGraph(attributePaths = { "components", "components.product" })
         Page<Recipe> findAll(Pageable pageable);
 
-        @EntityGraph(attributePaths = { "components", "components.product", "allergens" })
+        @EntityGraph(attributePaths = { "components", "components.product" })
         @Query("SELECT r FROM Recipe r WHERE LOWER(r.name) LIKE LOWER(CONCAT('%', :namePart, '%'))")
         Page<Recipe> findByNameContainingIgnoreCaseWithDetailsPageable(
                         @Param("namePart") String namePart,
