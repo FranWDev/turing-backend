@@ -61,7 +61,7 @@ public class RecipeService {
         this.userRepository = userRepository;
     }
 
-    @Cacheable(value = "recipes_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
+    @Cacheable(value = "recipes_page_v2", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<RecipeResponseDTO> findAll(Pageable pageable) {
         org.springframework.data.domain.Page<RecipeResponseDTO> page = repository.findAllProjectedBy(pageable)
@@ -70,13 +70,13 @@ public class RecipeService {
                 page.getTotalElements());
     }
 
-    @Cacheable(value = "recipe", key = "#id")
+    @Cacheable(value = "recipe_v2", key = "#id")
     @Transactional(readOnly = true)
     public Optional<RecipeResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id).map(this::toResponseDTO);
     }
 
-    @CacheEvict(value = { "recipes_page", "recipe" }, allEntries = true)
+    @CacheEvict(value = { "recipes_page_v2", "recipe_v2" }, allEntries = true)
     @RecipeAuditable(action = "CREATE_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
@@ -89,7 +89,7 @@ public class RecipeService {
         return recipeMapper.toResponseDTO(recipe);
     }
 
-    @CacheEvict(value = { "recipes_page", "recipe" }, allEntries = true)
+    @CacheEvict(value = { "recipes_page_v2", "recipe_v2" }, allEntries = true)
     @RecipeAuditable(action = "UPDATE_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
@@ -103,7 +103,7 @@ public class RecipeService {
                 });
     }
 
-    @CacheEvict(value = { "recipes_page", "recipe" }, allEntries = true)
+    @CacheEvict(value = { "recipes_page_v2", "recipe_v2" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {

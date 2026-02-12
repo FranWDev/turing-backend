@@ -31,25 +31,25 @@ public class CacheConfig {
     @Bean
     public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer() {
         return (builder) -> builder
-                .withCacheConfiguration("recipes_page",
+                .withCacheConfiguration("recipes_page_v2",
                         RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofMinutes(10))
                                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                                         .fromSerializer(new StringRedisSerializer()))
                                 .serializeValuesWith(RedisSerializationContext.SerializationPair
                                         .fromSerializer(new GenericJackson2JsonRedisSerializer())))
-                .withCacheConfiguration("products_page",
+                .withCacheConfiguration("products_page_v2",
                         RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofMinutes(10))
                                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                                         .fromSerializer(new StringRedisSerializer()))
                                 .serializeValuesWith(RedisSerializationContext.SerializationPair
                                         .fromSerializer(new GenericJackson2JsonRedisSerializer())))
-                .withCacheConfiguration("recipe",
+                .withCacheConfiguration("recipe_v2",
                         RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofHours(1))
                                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                                         .fromSerializer(new StringRedisSerializer()))
                                 .serializeValuesWith(RedisSerializationContext.SerializationPair
                                         .fromSerializer(new GenericJackson2JsonRedisSerializer())))
-                .withCacheConfiguration("product",
+                .withCacheConfiguration("product_v2",
                         RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofHours(1))
                                 .serializeKeysWith(RedisSerializationContext.SerializationPair
                                         .fromSerializer(new StringRedisSerializer()))
