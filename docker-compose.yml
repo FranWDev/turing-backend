@@ -49,7 +49,6 @@ services:
       PGUSER: inventory_user
       PGPASSWORD: inventory_password
       PGDATA: /var/lib/postgresql/data
-    # ELIMINAMOS 'command' AQUÍ PORQUE LO MOVEMOS AL ENTRYPOINT
     entrypoint: |
       /bin/sh -c "
       set -e
@@ -78,38 +77,6 @@ services:
       "
     volumes:
       - postgres-replica-data:/var/lib/postgresql/data
-    networks:
-      - inventory-network
-    restart: unless-stopped
-
-  # ... (MANTÉN EL RESTO DE TUS SERVICIOS: redis, zookeeper, kafka, backend, etc.)
-  # Asegúrate de que el Backend apunte a:
-  # DB_WRITER_URL: jdbc:postgresql://inventory-postgres:5432/inventory
-  # DB_READER_URL: jdbc:postgresql://inventory-postgres-replica:5432/inventory
-  
-  # ... (Pega aquí el resto de tu archivo original)
-  
-  # ===================================
-  # (SECCIÓN BACKEND RESUMIDA PARA CONTEXTO)
-  # ===================================
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: inventory-backend
-    depends_on:
-      postgres:
-        condition: service_healthy
-      postgres-replica: 
-        condition: service_started # Cambiado a started para no bloquear si el healthcheck tarda
-    ports:
-      - "8081:8081"
-    environment:
-      # URLs corregidas usando los container_names
-      SPRING_DATASOURCE_URL: jdbc:postgresql://inventory-postgres:5432/inventory
-      DB_WRITER_URL: jdbc:postgresql://inventory-postgres:5432/inventory
-      DB_READER_URL: jdbc:postgresql://inventory-postgres-replica:5432/inventory
-      # ... resto de envs
     networks:
       - inventory-network
     restart: unless-stopped
