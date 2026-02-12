@@ -61,6 +61,7 @@ public class RecipeService {
         this.userRepository = userRepository;
     }
 
+    @Cacheable(value = "recipes_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<RecipeResponseDTO> findAll(Pageable pageable) {
         return repository.findAllProjectedBy(pageable)
@@ -73,7 +74,7 @@ public class RecipeService {
         return repository.findProjectedById(id).map(this::toResponseDTO);
     }
 
-    @CacheEvict(value = { "recipes", "recipe" }, allEntries = true)
+    @CacheEvict(value = { "recipes_page", "recipe" }, allEntries = true)
     @RecipeAuditable(action = "CREATE_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
@@ -86,7 +87,7 @@ public class RecipeService {
         return recipeMapper.toResponseDTO(recipe);
     }
 
-    @CacheEvict(value = { "recipes", "recipe" }, allEntries = true)
+    @CacheEvict(value = { "recipes_page", "recipe" }, allEntries = true)
     @RecipeAuditable(action = "UPDATE_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
@@ -100,7 +101,7 @@ public class RecipeService {
                 });
     }
 
-    @CacheEvict(value = { "recipes", "recipe" }, allEntries = true)
+    @CacheEvict(value = { "recipes_page", "recipe" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
