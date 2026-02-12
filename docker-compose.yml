@@ -38,27 +38,35 @@ services:
   # ===================================
   # PostgreSQL Replica (LECTURA - SECONDARY)
   # ===================================
+# ===================================
+  # PostgreSQL Replica (LECTURA - SECONDARY)
+  # ===================================
   postgres-replica:
     image: postgres:16-alpine
     container_name: inventory-postgres-replica
+    user: postgres 
     depends_on:
       postgres:
         condition: service_healthy
     ports:
-      - "5433:5432" # Acceso externo por el 5433 para verificar lectura
+      - "5433:5432"
     environment:
       PGUSER: inventory_user
       PGPASSWORD: inventory_password
-    # Script de inicio: Borra datos viejos, clona de la principal y arranca
     entrypoint: |
       /bin/sh -c "
       echo 'Esperando al primario...'
-      sleep 5
-      echo 'Limpiando datos antiguos de la réplica...'
-      rm -rf /var/lib/postgresql/data/*
-      echo 'Clonando base de datos desde el primario...'
-      pg_basebackup -h postgres -p 5432 -U inventory_user -D /var/lib/postgresql/data -Fp -Xs -P -R
-      echo 'Iniciando modo Réplica...'
+      until pg_isready -h postgres -p 5432 -U inventory_user; do
+        sleep 2
+      done
+      
+      if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
+        echo 'Directorio vacío. Clonando base de datos desde el primario...'
+        rm -rf /var/lib/postgresql/data/*
+        pg_basebackup -h postgres -p 5432 -U inventory_user -D /var/lib/postgresql/data -Fp -Xs -P -R
+      fi
+      
+      echo 'Iniciando PostgreSQL en modo Réplica...'
       exec postgres -c hot_standby=on
       "
     volumes:
