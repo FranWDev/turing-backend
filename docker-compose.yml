@@ -7,7 +7,7 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: inventory-postgres
-    # Habilitamos configuración necesaria para replicación
+    # COMANDO FUSIONADO: Incluye configuración de WAL y escucha en todas las interfaces
     command: |
       postgres 
       -c wal_level=replica 
@@ -15,12 +15,13 @@ services:
       -c max_wal_senders=10 
       -c max_replication_slots=10 
       -c hot_standby_feedback=on
+      -c listen_addresses='*'
     environment:
       POSTGRES_DB: inventory
       POSTGRES_USER: inventory_user
       POSTGRES_PASSWORD: inventory_password
       PGDATA: /var/lib/postgresql/data/pgdata
-      # Trust interno para facilitar que la réplica se conecte
+      # Permite conexiones de replicación sin contraseña dentro de la red Docker
       POSTGRES_HOST_AUTH_METHOD: trust 
     ports:
       - "5432:5432"
@@ -28,7 +29,7 @@ services:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
     networks:
@@ -38,13 +39,10 @@ services:
   # ===================================
   # PostgreSQL Replica (LECTURA - SECONDARY)
   # ===================================
-# ===================================
-  # PostgreSQL Replica (LECTURA - SECONDARY)
-  # ===================================
   postgres-replica:
     image: postgres:16-alpine
     container_name: inventory-postgres-replica
-    user: postgres 
+    user: postgres
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,21 +51,22 @@ services:
     environment:
       PGUSER: inventory_user
       PGPASSWORD: inventory_password
+    # Script optimizado para clonar solo si es necesario
     entrypoint: |
       /bin/sh -c "
       echo 'Esperando al primario...'
       until pg_isready -h postgres -p 5432 -U inventory_user; do
-        sleep 2
+        sleep 1
       done
       
-      if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
-        echo 'Directorio vacío. Clonando base de datos desde el primario...'
+      if [ ! -s /var/lib/postgresql/data/postgresql.conf ]; then
+        echo 'Clonando base de datos...'
         rm -rf /var/lib/postgresql/data/*
-        pg_basebackup -h postgres -p 5432 -U inventory_user -D /var/lib/postgresql/data -Fp -Xs -P -R
+        pg_basebackup -h postgres -D /var/lib/postgresql/data -U inventory_user -vP -R --wal-method=stream
       fi
       
       echo 'Iniciando PostgreSQL en modo Réplica...'
-      exec postgres -c hot_standby=on
+      exec postgres
       "
     volumes:
       - postgres-replica-data:/var/lib/postgresql/data
@@ -160,7 +159,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      postgres-replica: # Esperamos a que la réplica arranque también
+      postgres-replica: 
         condition: service_started
       redis:
         condition: service_healthy
@@ -169,13 +168,12 @@ services:
     ports:
       - "8081:8081"
     environment:
-      # Database Principal (Default para migraciones y escritura)
+      # Database Principal
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventory
       SPRING_DATASOURCE_USERNAME: inventory_user
       SPRING_DATASOURCE_PASSWORD: inventory_password
       
-      # URLs Específicas para CQRS (RoutingDataSource)
-      # Usa estas en tu configuración de Spring
+      # URLs para CQRS
       DB_WRITER_URL: jdbc:postgresql://postgres:5432/inventory
       DB_READER_URL: jdbc:postgresql://postgres-replica:5432/inventory
 
@@ -239,7 +237,7 @@ services:
 volumes:
   postgres-data:
     driver: local
-  postgres-replica-data: # Volumen nuevo para la réplica
+  postgres-replica-data:
     driver: local
   redis-data:
     driver: local
