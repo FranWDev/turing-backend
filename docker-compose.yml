@@ -42,7 +42,7 @@ services:
   postgres-replica:
     image: postgres:16-alpine
     container_name: inventory-postgres-replica
-    # user: postgres  <--- ¡ELIMINA ESTA LÍNEA! Necesitamos ser root para el chmod
+    # SIN 'user: postgres', corremos como root para arreglar permisos
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,33 +51,37 @@ services:
     environment:
       PGUSER: inventory_user
       PGPASSWORD: inventory_password
+      # Definimos explícitamente PGDATA por seguridad
+      PGDATA: /var/lib/postgresql/data
     entrypoint: |
       /bin/sh -c "
-      # 1. Arreglar permisos de la carpeta (Como somos root, esto funciona)
-      echo 'Asegurando permisos 0700 en data directory...'
+      set -e
+      
+      echo '1. Asegurando permisos 0700 en data directory...'
       chown -R postgres:postgres /var/lib/postgresql/data
       chmod 0700 /var/lib/postgresql/data
 
-      # 2. Esperar al primario
-      echo 'Esperando al primario...'
+      echo '2. Esperando al primario...'
       until pg_isready -h postgres -p 5432 -U inventory_user -d inventory; do
         sleep 2
       done
       
-      # 3. Clonar si está vacío (Ejecutamos pg_basebackup como usuario postgres)
-      if [ ! -s /var/lib/postgresql/data/postgresql.conf ]; then
-        echo 'Clonando base de datos...'
-        rm -rf /var/lib/postgresql/data/*
-        # IMPORTANTE: Ejecutar el backup como usuario 'postgres'
-        su - postgres -c 'pg_basebackup -h postgres -D /var/lib/postgresql/data -U inventory_user -vP -R --wal-method=stream'
+      # Verificamos si existe PG_VERSION para saber si es una DB válida
+      if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
+        echo '3. Carpeta vacía o corrupta. Clonando base de datos...'
         
-        # Corrección defensiva de permisos post-clonado
-        chmod 0700 /var/lib/postgresql/data
+        # Limpiamos todo por seguridad
+        rm -rf /var/lib/postgresql/data/*
+        
+        # Clonamos usando el usuario postgres
+        su-exec postgres pg_basebackup -h postgres -D /var/lib/postgresql/data -U inventory_user -vP -R --wal-method=stream
+      else
+        echo '3. Datos detectados. Omitiendo clonado.'
       fi
       
-      echo 'Iniciando PostgreSQL en modo Réplica...'
-      # 4. Arrancar el proceso final como usuario 'postgres'
-      exec su - postgres -c 'postgres'
+      echo '4. Iniciando PostgreSQL en modo Réplica...'
+      # AQUÍ ESTABA EL ERROR: Añadimos explícitamente '-D'
+      exec su-exec postgres postgres -D /var/lib/postgresql/data
       "
     volumes:
       - postgres-replica-data:/var/lib/postgresql/data
