@@ -2,16 +2,26 @@ version: '3.8'
 
 services:
   # ===================================
-  # PostgreSQL Database
+  # PostgreSQL Database (ESCRITURA - PRIMARY)
   # ===================================
   postgres:
     image: postgres:16-alpine
     container_name: inventory-postgres
+    # Habilitamos configuración necesaria para replicación
+    command: |
+      postgres 
+      -c wal_level=replica 
+      -c hot_standby=on 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10 
+      -c hot_standby_feedback=on
     environment:
       POSTGRES_DB: inventory
       POSTGRES_USER: inventory_user
       POSTGRES_PASSWORD: inventory_password
       PGDATA: /var/lib/postgresql/data/pgdata
+      # Trust interno para facilitar que la réplica se conecte
+      POSTGRES_HOST_AUTH_METHOD: trust 
     ports:
       - "5432:5432"
     volumes:
@@ -26,14 +36,46 @@ services:
     restart: unless-stopped
 
   # ===================================
-  # Redis Cache (AISLADO PARA DOCKER)
+  # PostgreSQL Replica (LECTURA - SECONDARY)
+  # ===================================
+  postgres-replica:
+    image: postgres:16-alpine
+    container_name: inventory-postgres-replica
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5433:5432" # Acceso externo por el 5433 para verificar lectura
+    environment:
+      PGUSER: inventory_user
+      PGPASSWORD: inventory_password
+    # Script de inicio: Borra datos viejos, clona de la principal y arranca
+    entrypoint: |
+      /bin/sh -c "
+      echo 'Esperando al primario...'
+      sleep 5
+      echo 'Limpiando datos antiguos de la réplica...'
+      rm -rf /var/lib/postgresql/data/*
+      echo 'Clonando base de datos desde el primario...'
+      pg_basebackup -h postgres -p 5432 -U inventory_user -D /var/lib/postgresql/data -Fp -Xs -P -R
+      echo 'Iniciando modo Réplica...'
+      exec postgres -c hot_standby=on
+      "
+    volumes:
+      - postgres-replica-data:/var/lib/postgresql/data
+    networks:
+      - inventory-network
+    restart: unless-stopped
+
+  # ===================================
+  # Redis Cache
   # ===================================
   redis:
     image: redis:7-alpine
     container_name: inventory-redis
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
-      - "6381:6379"  # <--- CAMBIADO: Ahora puedes acceder a este redis desde fuera por el 6381
+      - "6381:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -46,7 +88,7 @@ services:
     restart: unless-stopped
 
   # ===================================
-  # Zookeeper (para Kafka)
+  # Zookeeper
   # ===================================
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
@@ -110,6 +152,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      postgres-replica: # Esperamos a que la réplica arranque también
+        condition: service_started
       redis:
         condition: service_healthy
       kafka:
@@ -117,17 +161,21 @@ services:
     ports:
       - "8081:8081"
     environment:
-      # Database
+      # Database Principal (Default para migraciones y escritura)
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventory
       SPRING_DATASOURCE_USERNAME: inventory_user
       SPRING_DATASOURCE_PASSWORD: inventory_password
       
-      # Redis (Usa el nombre del servicio interno, no choca con el externo)
+      # URLs Específicas para CQRS (RoutingDataSource)
+      # Usa estas en tu configuración de Spring
+      DB_WRITER_URL: jdbc:postgresql://postgres:5432/inventory
+      DB_READER_URL: jdbc:postgresql://postgres-replica:5432/inventory
+
+      # Redis
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
-      
       
       # JPA
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
@@ -136,8 +184,10 @@ services:
       # JWT
       JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
       JWT_EXPIRATION: 86400000
+      
       # Kafka
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      
       # Java Options
       JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
     networks:
@@ -145,7 +195,7 @@ services:
     restart: unless-stopped
 
   # ===================================
-  # Redis Commander (GUI para Redis)
+  # Redis Commander
   # ===================================
   redis-commander:
     image: rediscommander/redis-commander:latest
@@ -161,7 +211,7 @@ services:
     restart: unless-stopped
 
   # ===================================
-  # Kafka UI (GUI para Kafka)
+  # Kafka UI
   # ===================================
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -180,6 +230,8 @@ services:
 
 volumes:
   postgres-data:
+    driver: local
+  postgres-replica-data: # Volumen nuevo para la réplica
     driver: local
   redis-data:
     driver: local
