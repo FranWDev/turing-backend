@@ -42,7 +42,7 @@ services:
   postgres-replica:
     image: postgres:16-alpine
     container_name: inventory-postgres-replica
-    user: postgres
+    # user: postgres  <--- ¡ELIMINA ESTA LÍNEA! Necesitamos ser root para el chmod
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,29 +51,39 @@ services:
     environment:
       PGUSER: inventory_user
       PGPASSWORD: inventory_password
-    # Script optimizado para clonar solo si es necesario
     entrypoint: |
       /bin/sh -c "
+      # 1. Arreglar permisos de la carpeta (Como somos root, esto funciona)
+      echo 'Asegurando permisos 0700 en data directory...'
+      chown -R postgres:postgres /var/lib/postgresql/data
+      chmod 0700 /var/lib/postgresql/data
+
+      # 2. Esperar al primario
       echo 'Esperando al primario...'
-      until pg_isready -h postgres -p 5432 -U inventory_user; do
-        sleep 1
+      until pg_isready -h postgres -p 5432 -U inventory_user -d inventory; do
+        sleep 2
       done
       
+      # 3. Clonar si está vacío (Ejecutamos pg_basebackup como usuario postgres)
       if [ ! -s /var/lib/postgresql/data/postgresql.conf ]; then
         echo 'Clonando base de datos...'
         rm -rf /var/lib/postgresql/data/*
-        pg_basebackup -h postgres -D /var/lib/postgresql/data -U inventory_user -vP -R --wal-method=stream
+        # IMPORTANTE: Ejecutar el backup como usuario 'postgres'
+        su - postgres -c 'pg_basebackup -h postgres -D /var/lib/postgresql/data -U inventory_user -vP -R --wal-method=stream'
+        
+        # Corrección defensiva de permisos post-clonado
+        chmod 0700 /var/lib/postgresql/data
       fi
       
       echo 'Iniciando PostgreSQL en modo Réplica...'
-      exec postgres
+      # 4. Arrancar el proceso final como usuario 'postgres'
+      exec su - postgres -c 'postgres'
       "
     volumes:
       - postgres-replica-data:/var/lib/postgresql/data
     networks:
       - inventory-network
     restart: unless-stopped
-
   # ===================================
   # Redis Cache
   # ===================================
