@@ -32,6 +32,7 @@ public class JwtFilter extends OncePerRequestFilter {
             "/api/auth/register",
             "/login",
             "/",
+            "/scalar",
             "/scalar-ui.html");
 
     private static final Set<String> STATIC_PREFIXES = Set.of(

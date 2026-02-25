@@ -60,7 +60,7 @@ public class SecurityConfig {
                                                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**",
                                                                 "/swagger-ui.html", "/webjars/**",
                                                                 "/swagger-resources/**", "/configuration/**",
-                                                                "/scalar-ui.html", "/scalar/**")
+                                                                "/scalar-ui.html", "/scalar", "/scalar/**")
                                                 .permitAll()
 
                                                 // ===== RUTAS PROTEGIDAS =====
