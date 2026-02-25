@@ -98,14 +98,24 @@ public class OrderDetailService {
 
         @Transactional(readOnly = true)
         public List<OrderDetailResponseDTO> findByOrder(Order order) {
-                return repository.findProjectedByOrderId(order.getId()).stream()
+                return findByOrderId(order.getId());
+        }
+
+        @Transactional(readOnly = true)
+        public List<OrderDetailResponseDTO> findByOrderId(Integer orderId) {
+                return repository.findProjectedByOrderId(orderId).stream()
                                 .map(orderDetailMapper::toResponseDTO)
                                 .toList();
         }
 
         @Transactional(readOnly = true)
         public List<OrderDetailResponseDTO> findByProduct(Product product) {
-                return repository.findProjectedByProductId(product.getId()).stream()
+                return findByProductId(product.getId());
+        }
+
+        @Transactional(readOnly = true)
+        public List<OrderDetailResponseDTO> findByProductId(Integer productId) {
+                return repository.findProjectedByProductId(productId).stream()
                                 .map(orderDetailMapper::toResponseDTO)
                                 .toList();
         }

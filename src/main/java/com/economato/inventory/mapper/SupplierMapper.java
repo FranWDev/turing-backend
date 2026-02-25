@@ -16,7 +16,11 @@ public interface SupplierMapper {
 
     SupplierResponseDTO toResponseDTO(SupplierProjection projection);
 
+    @org.mapstruct.Mapping(target = "id", ignore = true)
+    @org.mapstruct.Mapping(target = "products", ignore = true)
     Supplier toEntity(SupplierRequestDTO requestDTO);
 
+    @org.mapstruct.Mapping(target = "id", ignore = true)
+    @org.mapstruct.Mapping(target = "products", ignore = true)
     void updateEntity(SupplierRequestDTO requestDTO, @MappingTarget Supplier supplier);
 }

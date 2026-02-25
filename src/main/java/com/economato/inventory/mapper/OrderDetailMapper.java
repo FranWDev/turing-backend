@@ -76,10 +76,12 @@ public interface OrderDetailMapper {
     @Mapping(target = "order", ignore = true)
     @Mapping(target = "product", ignore = true)
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "quantityReceived", ignore = true)
     OrderDetail toEntity(OrderDetailRequestDTO dto);
 
     @Mapping(target = "order", ignore = true)
     @Mapping(target = "product", ignore = true)
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "quantityReceived", ignore = true)
     void updateEntityFromDto(OrderDetailRequestDTO dto, @org.mapstruct.MappingTarget OrderDetail entity);
 }

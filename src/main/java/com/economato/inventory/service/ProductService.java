@@ -66,7 +66,7 @@ public class ProductService {
         this.userRepository = userRepository;
     }
 
-    @Cacheable(value = "products_page_v2", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
+    @Cacheable(value = "products_page_v4", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> findAll(Pageable pageable) {
         Page<ProductResponseDTO> page = repository.findAllProjectedBy(pageable)
