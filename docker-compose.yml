@@ -205,6 +205,7 @@ services:
       JWT_EXPIRATION: 86400000
 
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_MVC_PATHMATCH_MATCHING_STRATEGY: ant_path_matcher
 
       JAVA_OPTS: "-Xms256m -Xmx256m -XX:+UseZGC -XX:+ZGenerational"
     networks:
