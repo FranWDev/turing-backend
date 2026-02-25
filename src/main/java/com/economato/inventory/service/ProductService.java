@@ -69,8 +69,10 @@ public class ProductService {
     @Cacheable(value = "products_page_v2", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> findAll(Pageable pageable) {
-        return repository.findAllProjectedBy(pageable)
+        Page<ProductResponseDTO> page = repository.findAllProjectedBy(pageable)
                 .map(productMapper::toResponseDTO);
+        return new com.economato.inventory.dto.RestPage<>(page.getContent(), page.getPageable(),
+                page.getTotalElements());
     }
 
     @Cacheable(value = "product_v2", key = "#id")
