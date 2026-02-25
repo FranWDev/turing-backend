@@ -4,17 +4,17 @@ import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
+import com.economato.inventory.dto.projection.SupplierProjection;
 import com.economato.inventory.dto.request.SupplierRequestDTO;
 import com.economato.inventory.dto.response.SupplierResponseDTO;
 import com.economato.inventory.model.Supplier;
 
-@Mapper(
-    componentModel = "spring",
-    nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
-)
+@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface SupplierMapper {
 
     SupplierResponseDTO toResponseDTO(Supplier supplier);
+
+    SupplierResponseDTO toResponseDTO(SupplierProjection projection);
 
     Supplier toEntity(SupplierRequestDTO requestDTO);
 

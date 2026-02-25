@@ -3,6 +3,7 @@ package com.economato.inventory.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -63,17 +64,15 @@ public class RecipeService {
 
     @Cacheable(value = "recipes_page_v2", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<RecipeResponseDTO> findAll(Pageable pageable) {
-        org.springframework.data.domain.Page<RecipeResponseDTO> page = repository.findAllProjectedBy(pageable)
-                .map(this::toResponseDTO);
-        return new com.economato.inventory.dto.RestPage<>(page.getContent(), page.getPageable(),
-                page.getTotalElements());
+    public Page<RecipeResponseDTO> findAll(Pageable pageable) {
+        return repository.findAllProjectedBy(pageable)
+                .map(recipeMapper::toResponseDTO);
     }
 
     @Cacheable(value = "recipe_v2", key = "#id")
     @Transactional(readOnly = true)
     public Optional<RecipeResponseDTO> findById(Integer id) {
-        return repository.findProjectedById(id).map(this::toResponseDTO);
+        return repository.findProjectedById(id).map(recipeMapper::toResponseDTO);
     }
 
     @CacheEvict(value = { "recipes_page_v2", "recipe_v2" }, allEntries = true)
@@ -113,64 +112,15 @@ public class RecipeService {
     @Transactional(readOnly = true)
     public List<RecipeResponseDTO> findByNameContaining(String namePart) {
         return repository.findProjectedByNameContainingIgnoreCase(namePart).stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
+                .map(recipeMapper::toResponseDTO)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<RecipeResponseDTO> findByCostLessThan(BigDecimal maxCost) {
         return repository.findProjectedByTotalCostLessThan(maxCost).stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Converts RecipeProjection to RecipeResponseDTO
-     */
-    private RecipeResponseDTO toResponseDTO(com.economato.inventory.dto.projection.RecipeProjection projection) {
-        RecipeResponseDTO dto = new RecipeResponseDTO();
-        dto.setId(projection.getId());
-        dto.setName(projection.getName());
-        dto.setElaboration(projection.getElaboration());
-        dto.setPresentation(projection.getPresentation());
-        dto.setTotalCost(projection.getTotalCost());
-
-        if (projection.getComponents() != null) {
-            dto.setComponents(projection.getComponents().stream()
-                    .map(c -> toComponentDTO(c, projection.getId()))
-                    .collect(Collectors.toList()));
-        }
-
-        if (projection.getAllergens() != null) {
-            dto.setAllergens(projection.getAllergens().stream()
-                    .map(this::toAllergenDTO)
-                    .collect(Collectors.toList()));
-        }
-        return dto;
-    }
-
-    private com.economato.inventory.dto.response.RecipeComponentResponseDTO toComponentDTO(
-            com.economato.inventory.dto.projection.RecipeProjection.RecipeComponentSummary summary, Integer recipeId) {
-        com.economato.inventory.dto.response.RecipeComponentResponseDTO dto = new com.economato.inventory.dto.response.RecipeComponentResponseDTO();
-        dto.setId(summary.getId());
-        dto.setQuantity(summary.getQuantity());
-        dto.setParentRecipeId(recipeId);
-
-        if (summary.getProduct() != null) {
-            dto.setProductId(summary.getProduct().getId());
-            dto.setProductName(summary.getProduct().getName());
-
-            BigDecimal price = summary.getProduct().getUnitPrice();
-            if (price != null && summary.getQuantity() != null) {
-                dto.setSubtotal(price.multiply(summary.getQuantity()));
-            }
-        }
-        return dto;
-    }
-
-    private com.economato.inventory.dto.response.AllergenResponseDTO toAllergenDTO(
-            com.economato.inventory.dto.projection.RecipeProjection.AllergenInfo info) {
-        return new com.economato.inventory.dto.response.AllergenResponseDTO(info.getId(), info.getName());
+                .map(recipeMapper::toResponseDTO)
+                .toList();
     }
 
     private Recipe toEntity(RecipeRequestDTO requestDTO) {
