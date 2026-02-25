@@ -31,7 +31,8 @@ public class JwtFilter extends OncePerRequestFilter {
             "/api/auth/login",
             "/api/auth/register",
             "/login",
-            "/");
+            "/",
+            "/scalar-ui.html");
 
     private static final Set<String> STATIC_PREFIXES = Set.of(
             "/styles/",
@@ -41,6 +42,7 @@ public class JwtFilter extends OncePerRequestFilter {
             "/webjars/",
             "/swagger-resources/",
             "/configuration/",
+            "/scalar/",
             "/robots.txt",
             "/sitemap.xml",
             "/manifest.json");
