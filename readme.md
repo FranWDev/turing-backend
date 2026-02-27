@@ -8,7 +8,7 @@ Bienvenidos al Backend del **Sistema de Gestión de Economato Inteligente (Smart
 
 ---
 
-## � Arquitectura y Características Destacadas (La Cereza del Portfolio)
+##  Arquitectura y Características Destacadas
 
 Este proyecto va mucho más allá de un CRUD tradicional, implementando patrones de diseño avanzados y soluciones puras de grado empresarial:
 
