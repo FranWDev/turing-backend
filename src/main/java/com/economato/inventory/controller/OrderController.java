@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.economato.inventory.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.dto.request.OrderRequestDTO;
 import com.economato.inventory.dto.response.OrderResponseDTO;
+import com.economato.inventory.model.OrderStatus;
 import com.economato.inventory.service.OrderPdfService;
 import com.economato.inventory.service.OrderService;
 import com.economato.inventory.service.UserService;
@@ -85,23 +86,15 @@ public class OrderController {
         public ResponseEntity<byte[]> downloadOrderPdf(
                         @Parameter(description = "ID del pedido", example = "10") @PathVariable Integer id) {
                 return orderService.findById(id)
-                                .<ResponseEntity<byte[]>>map(order -> {
-                                        try {
-                                                byte[] pdfBytes = orderPdfService.generateOrderPdf(order);
-
-                                                HttpHeaders headers = new HttpHeaders();
-                                                headers.setContentType(MediaType.APPLICATION_PDF);
-                                                headers.setContentDisposition(ContentDisposition.attachment()
-                                                                .filename("pedido_" + order.getId() + ".pdf")
-                                                                .build());
-                                                headers.setContentLength(pdfBytes.length);
-
-                                                return ResponseEntity.ok()
-                                                                .headers(headers)
-                                                                .body(pdfBytes);
-                                        } catch (Exception e) {
-                                                return ResponseEntity.<byte[]>internalServerError().build();
-                                        }
+                                .map(order -> {
+                                        byte[] pdfBytes = orderPdfService.generateOrderPdf(order);
+                                        HttpHeaders headers = new HttpHeaders();
+                                        headers.setContentType(MediaType.APPLICATION_PDF);
+                                        headers.setContentDisposition(ContentDisposition.attachment()
+                                                        .filename("pedido_" + order.getId() + ".pdf")
+                                                        .build());
+                                        headers.setContentLength(pdfBytes.length);
+                                        return ResponseEntity.ok().headers(headers).body(pdfBytes);
                                 })
                                 .orElse(ResponseEntity.<byte[]>notFound().build());
         }
@@ -173,7 +166,7 @@ public class OrderController {
         @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/status/{status}")
         public List<OrderResponseDTO> getByStatus(
-                        @Parameter(description = "Estado del pedido", example = "PENDIENTE") @PathVariable String status) {
+                        @Parameter(description = "Estado del pedido", example = "CREATED") @PathVariable OrderStatus status) {
                 return orderService.findByStatus(status);
         }
 
@@ -217,12 +210,8 @@ public class OrderController {
         @PostMapping("/reception")
         public ResponseEntity<OrderResponseDTO> receiveOrder(
                         @Valid @org.springframework.web.bind.annotation.RequestBody OrderReceptionRequestDTO receptionData) {
-                try {
-                        OrderResponseDTO result = orderService.receiveOrder(receptionData);
-                        return ResponseEntity.ok(result);
-                } catch (RuntimeException e) {
-                        return ResponseEntity.badRequest().build();
-                }
+                OrderResponseDTO result = orderService.receiveOrder(receptionData);
+                return ResponseEntity.ok(result);
         }
 
         @Operation(summary = "Actualizar estado de una orden", description = "Permite cambiar el estado de una orden entre: CREATED, PENDING, REVIEW, COMPLETED, INCOMPLETE. [Rol requerido: CHEF]", responses = {
@@ -235,33 +224,29 @@ public class OrderController {
         public ResponseEntity<OrderResponseDTO> updateOrderStatus(
                         @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id,
                         @org.springframework.web.bind.annotation.RequestBody UpdateStatusRequest statusRequest) {
-                try {
-                        return orderService.updateStatus(id, statusRequest.getStatus())
-                                        .map(ResponseEntity::ok)
-                                        .orElse(ResponseEntity.notFound().build());
-                } catch (IllegalArgumentException e) {
-                        return ResponseEntity.badRequest().build();
-                }
+                return orderService.updateStatus(id, statusRequest.getStatus())
+                                .map(ResponseEntity::ok)
+                                .orElse(ResponseEntity.notFound().build());
         }
 
         /**
          * DTO para actualizar estado de orden
          */
         public static class UpdateStatusRequest {
-                private String status;
+                private OrderStatus status;
 
                 public UpdateStatusRequest() {
                 }
 
-                public UpdateStatusRequest(String status) {
+                public UpdateStatusRequest(OrderStatus status) {
                         this.status = status;
                 }
 
-                public String getStatus() {
+                public OrderStatus getStatus() {
                         return status;
                 }
 
-                public void setStatus(String status) {
+                public void setStatus(OrderStatus status) {
                         this.status = status;
                 }
         }

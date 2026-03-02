@@ -1,5 +1,6 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.model.OrderStatus;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
@@ -40,23 +41,27 @@ public class OrderPdfService {
 
         private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
-        public byte[] generateOrderPdf(OrderResponseDTO order) throws Exception {
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                PdfWriter writer = new PdfWriter(baos);
-                PdfDocument pdfDoc = new PdfDocument(writer);
-                try (Document document = new Document(pdfDoc, PageSize.A4)) {
-                        document.setMargins(40, 40, 40, 40);
+        public byte[] generateOrderPdf(OrderResponseDTO order) {
+                try {
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        PdfWriter writer = new PdfWriter(baos);
+                        PdfDocument pdfDoc = new PdfDocument(writer);
+                        try (Document document = new Document(pdfDoc, PageSize.A4)) {
+                                document.setMargins(40, 40, 40, 40);
 
-                        PdfFont regularFont = PdfFontFactory.createFont("Helvetica");
-                        PdfFont boldFont = PdfFontFactory.createFont("Helvetica-Bold");
+                                PdfFont regularFont = PdfFontFactory.createFont("Helvetica");
+                                PdfFont boldFont = PdfFontFactory.createFont("Helvetica-Bold");
 
-                        addHeader(document, order, boldFont);
-                        addOrderInfoSection(document, order, boldFont, regularFont);
-                        addProductsTable(document, order.getDetails(), boldFont, regularFont);
-                        addTotalBanner(document, order.getTotalPrice(), boldFont);
-                        addFooter(document, regularFont);
+                                addHeader(document, order, boldFont);
+                                addOrderInfoSection(document, order, boldFont, regularFont);
+                                addProductsTable(document, order.getDetails(), boldFont, regularFont);
+                                addTotalBanner(document, order.getTotalPrice(), boldFont);
+                                addFooter(document, regularFont);
+                        }
+                        return baos.toByteArray();
+                } catch (Exception e) {
+                        throw new RuntimeException("Error al generar el PDF del pedido " + order.getId(), e);
                 }
-                return baos.toByteArray();
         }
 
         // ===== HEADER =====
@@ -309,18 +314,17 @@ public class OrderPdfService {
                 return value.replaceAll("[^\\u0009\\u000A\\u000D\\u0020-\\u00FF]", "");
         }
 
-        private String translateStatusToEs(String status) {
+        private String translateStatusToEs(OrderStatus status) {
                 if (status == null) {
                         return "";
                 }
-                return switch (status.trim().toUpperCase()) {
-                        case "CREATED" -> "CREADO";
-                        case "PENDING" -> "PENDIENTE";
-                        case "REVIEW" -> "EN REVISIÓN";
-                        case "CONFIRMED" -> "CONFIRMADO";
-                        case "INCOMPLETE" -> "INCOMPLETO";
-                        case "CANCELLED" -> "CANCELADO";
-                        default -> status;
+                return switch (status) {
+                        case CREATED -> "CREADO";
+                        case PENDING -> "PENDIENTE";
+                        case REVIEW -> "EN REVISIÓN";
+                        case CONFIRMED -> "CONFIRMADO";
+                        case INCOMPLETE -> "INCOMPLETO";
+                        case CANCELLED -> "CANCELADO";
                 };
         }
 }
