@@ -74,7 +74,7 @@ public class AuditOutboxProcessor {
 
         List<AuditOutbox> outboxEvents;
         try {
-            outboxEvents = outboxRepository.findTop100ByOrderByCreatedAtAsc();
+            outboxEvents = outboxRepository.findTop50ByOrderByCreatedAtAsc();
         } catch (CallNotPermittedException e) {
             log.warn("DB circuit breaker OPEN, cannot read outbox: {}", e.getMessage());
             return;
@@ -105,10 +105,18 @@ public class AuditOutboxProcessor {
                             outboxRepository.delete(event);
                             continue;
                     }
+                } catch (CallNotPermittedException e) {
+                    throw e; // Propagate to outer catch to log DB problem correctly
                 } catch (Exception e) {
                     log.error("Corrupted event payload in Outbox: id={}, topic={}, error={}",
                             event.getId(), event.getTopic(), e.getMessage());
-                    outboxRepository.delete(event);
+                    try {
+                        outboxRepository.delete(event);
+                    } catch (CallNotPermittedException dbEx) {
+                        throw dbEx;
+                    } catch (Exception deleteEx) {
+                        log.warn("Failed to delete corrupted event: {}", deleteEx.getMessage());
+                    }
                     continue;
                 }
 
@@ -136,7 +144,7 @@ public class AuditOutboxProcessor {
 
                 if (future != null) {
                     try {
-                        future.get(10, TimeUnit.SECONDS);
+                        future.get(5, TimeUnit.SECONDS);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         throw new RuntimeException("Kafka send interrupted", e);
