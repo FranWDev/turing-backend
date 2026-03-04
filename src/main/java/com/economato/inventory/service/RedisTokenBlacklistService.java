@@ -56,10 +56,12 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
                                 BLACKLIST_PREFIX + token,
                                 "revoked",
                                 Duration.ofMillis(ttlMillis));
+                        recordSuccess();
                     }
                 } catch (Exception e) {
                     // Redis failed, log warning but continue
                     log.warn("Failed to blacklist token in Redis, falling back to database: {}", e.getMessage());
+                    recordFailure(e);
                 }
             } else {
                 log.debug("Redis circuit breaker OPEN, skipping Redis blacklist write");
@@ -88,12 +90,14 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
             try {
                 // Try Redis first (faster)
                 Boolean exists = redisTemplate.hasKey(BLACKLIST_PREFIX + token);
+                recordSuccess();
                 if (exists != null && exists) {
                     return true;
                 }
             } catch (Exception e) {
                 // Redis failed or circuit breaker is open
                 log.debug("Redis unavailable for token lookup, falling back to database: {}", e.getMessage());
+                recordFailure(e);
                 // Continue to database fallback below
             }
         } else {
@@ -120,8 +124,10 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
                 if (keys != null && !keys.isEmpty()) {
                     redisTemplate.delete(keys);
                 }
+                recordSuccess();
             } catch (Exception e) {
                 log.warn("Failed to clear Redis blacklist: {}", e.getMessage());
+                recordFailure(e);
             }
         } else {
             log.debug("Redis circuit breaker OPEN, skipping Redis blacklist clear");
@@ -139,11 +145,13 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
         if (!isRedisCircuitOpen()) {
             try {
                 var keys = redisTemplate.keys(BLACKLIST_PREFIX + "*");
+                recordSuccess();
                 if (keys != null && !keys.isEmpty()) {
                     return keys.size();
                 }
             } catch (Exception e) {
                 log.debug("Failed to get Redis blacklist size: {}", e.getMessage());
+                recordFailure(e);
             }
         } else {
             log.debug("Redis circuit breaker OPEN, skipping Redis blacklist size check");
@@ -179,6 +187,33 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
             log.warn("Unable to inspect Redis circuit breaker state: {}", e.getMessage());
             return false;
         }
+    }
+
+    private void recordSuccess() {
+        try {
+            CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("redis");
+            circuitBreaker.onSuccess(0, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            log.warn("Failed to record Redis success: {}", e.getMessage());
+        }
+    }
+
+    private void recordFailure(Throwable exception) {
+        try {
+            CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("redis");
+            Throwable rootCause = resolveRootCause(exception);
+            circuitBreaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, rootCause);
+        } catch (Exception e) {
+            log.warn("Failed to record Redis failure: {}", e.getMessage());
+        }
+    }
+
+    private Throwable resolveRootCause(Throwable exception) {
+        Throwable current = exception;
+        while (current != null && current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current != null ? current : exception;
     }
 }
 

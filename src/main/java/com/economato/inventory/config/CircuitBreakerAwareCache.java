@@ -37,7 +37,9 @@ public class CircuitBreakerAwareCache implements Cache {
         }
         
         try {
-            return delegate.get(key);
+            ValueWrapper result = delegate.get(key);
+            recordSuccess();
+            return result;
         } catch (Exception e) {
             log.debug("Cache GET error for key '{}', returning null: {}", key, e.getMessage());
             recordFailure(e);
@@ -53,7 +55,9 @@ public class CircuitBreakerAwareCache implements Cache {
         }
         
         try {
-            return delegate.get(key, type);
+            T result = delegate.get(key, type);
+            recordSuccess();
+            return result;
         } catch (Exception e) {
             log.debug("Cache GET error for key '{}', returning null: {}", key, e.getMessage());
             recordFailure(e);
@@ -73,7 +77,9 @@ public class CircuitBreakerAwareCache implements Cache {
         }
         
         try {
-            return delegate.get(key, valueLoader);
+            T result = delegate.get(key, valueLoader);
+            recordSuccess();
+            return result;
         } catch (Exception e) {
             log.debug("Cache GET error for key '{}': {}", key, e.getMessage());
             recordFailure(e);
@@ -95,6 +101,7 @@ public class CircuitBreakerAwareCache implements Cache {
         
         try {
             delegate.put(key, value);
+            recordSuccess();
         } catch (Exception e) {
             log.debug("Cache PUT error for key '{}': {}", key, e.getMessage());
             recordFailure(e);
@@ -109,7 +116,9 @@ public class CircuitBreakerAwareCache implements Cache {
         }
         
         try {
-            return delegate.putIfAbsent(key, value);
+            ValueWrapper result = delegate.putIfAbsent(key, value);
+            recordSuccess();
+            return result;
         } catch (Exception e) {
             log.debug("Cache putIfAbsent error for key '{}': {}", key, e.getMessage());
             recordFailure(e);
@@ -126,6 +135,7 @@ public class CircuitBreakerAwareCache implements Cache {
         
         try {
             delegate.evict(key);
+            recordSuccess();
         } catch (Exception e) {
             log.debug("Cache EVICT error for key '{}': {}", key, e.getMessage());
             recordFailure(e);
@@ -141,6 +151,7 @@ public class CircuitBreakerAwareCache implements Cache {
         
         try {
             delegate.clear();
+            recordSuccess();
         } catch (Exception e) {
             log.debug("Cache CLEAR error: {}", e.getMessage());
             recordFailure(e);
@@ -155,6 +166,15 @@ public class CircuitBreakerAwareCache implements Cache {
         } catch (Exception e) {
             log.warn("Error checking Redis CB state: {}", e.getMessage());
             return false;
+        }
+    }
+
+    private void recordSuccess() {
+        try {
+            CircuitBreaker cb = circuitBreakerRegistry.circuitBreaker("redis");
+            cb.onSuccess(0, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            log.warn("Failed to record Redis success: {}", e.getMessage());
         }
     }
 
