@@ -1,6 +1,8 @@
 package com.economato.inventory.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,9 +39,22 @@ class TokenBlacklistServiceTest {
     @Mock
     private RevokedTokenRepository revokedTokenRepository;
 
+    @Mock
+    private CircuitBreakerRegistry circuitBreakerRegistry;
+
+    @Mock
+    private CircuitBreaker redisCircuitBreaker;
+
     @BeforeEach
     void setUp() {
-        tokenBlacklistService = new RedisTokenBlacklistService(redisTemplate, revokedTokenRepository, tokenLocaleCache);
+        lenient().when(circuitBreakerRegistry.circuitBreaker("redis")).thenReturn(redisCircuitBreaker);
+        lenient().when(redisCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
+
+        tokenBlacklistService = new RedisTokenBlacklistService(
+                redisTemplate,
+                revokedTokenRepository,
+                tokenLocaleCache,
+                circuitBreakerRegistry);
     }
 
     @Test

@@ -15,7 +15,11 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
@@ -28,6 +32,34 @@ import java.util.Map;
 @EnableCaching
 @Profile("!test")
 public class RedisConfig {
+
+        @Value("${spring.data.redis.host:localhost}")
+        private String redisHost;
+
+        @Value("${spring.data.redis.port:6379}")
+        private int redisPort;
+
+        @Value("${spring.data.redis.timeout:500}")
+        private long redisTimeout;
+
+        /**
+         * Configure Lettuce Redis connection factory with aggressive timeouts.
+         * This ensures fast failure when Redis is down.
+         */
+        @Bean
+        public RedisConnectionFactory redisConnectionFactory() {
+                RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
+                redisConfig.setHostName(redisHost);
+                redisConfig.setPort(redisPort);
+
+                // Aggressive timeouts: fail fast when Redis is down
+                LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
+                                .commandTimeout(Duration.ofMillis(redisTimeout)) // Command timeout
+                                .shutdownTimeout(Duration.ofMillis(100)) // Shutdown timeout
+                                .build();
+
+                return new LettuceConnectionFactory(redisConfig, clientConfig);
+        }
 
         private static GenericJackson2JsonRedisSerializer buildRedisSerializer(ObjectMapper baseMapper) {
                 PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()

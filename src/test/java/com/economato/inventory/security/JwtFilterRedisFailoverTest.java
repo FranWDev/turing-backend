@@ -1,6 +1,8 @@
 package com.economato.inventory.security;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +46,12 @@ class JwtFilterRedisFailoverTest {
     private RevokedTokenRepository revokedTokenRepository;
 
     @Mock
+    private CircuitBreakerRegistry circuitBreakerRegistry;
+
+    @Mock
+    private CircuitBreaker redisCircuitBreaker;
+
+    @Mock
     private UserDetailsService userDetailsService;
 
     private JwtFilter jwtFilter;
@@ -53,8 +61,27 @@ class JwtFilterRedisFailoverTest {
 
     @BeforeEach
     void setUp() {
-        tokenBlacklistService = new RedisTokenBlacklistService(redisTemplate, revokedTokenRepository, tokenLocaleCache);
+        lenient().when(circuitBreakerRegistry.circuitBreaker("redis")).thenReturn(redisCircuitBreaker);
+        lenient().when(redisCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
+
+        tokenBlacklistService = new RedisTokenBlacklistService(
+                redisTemplate,
+                revokedTokenRepository,
+                tokenLocaleCache,
+                circuitBreakerRegistry);
         jwtFilter = new JwtFilter(jwtUtils, userDetailsService, tokenBlacklistService);
+    }
+
+    @Test
+    void testIsBlacklistedSkipsRedisWhenCircuitBreakerOpen() {
+        String token = "test.jwt.token";
+        when(redisCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.OPEN);
+        when(revokedTokenRepository.existsByToken(token)).thenReturn(true);
+
+        assertTrue(tokenBlacklistService.isBlacklisted(token));
+
+        verifyNoInteractions(redisTemplate);
+        verify(revokedTokenRepository).existsByToken(token);
     }
 
     @Test
