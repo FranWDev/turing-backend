@@ -54,7 +54,8 @@ public class DataSourceAspect {
 
                             // Register READER failure in replica circuit breaker to notify frontend
                             // while still allowing graceful fallback to WRITER.
-                            replicaCircuitBreaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, t);
+                                replicaCircuitBreaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS,
+                                    resolveRootCause(t));
 
                             return retryWithWriter(pjp);
                         }
@@ -110,5 +111,13 @@ public class DataSourceAspect {
         }
         
         return false;
+    }
+
+    private Throwable resolveRootCause(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null && current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current != null ? current : throwable;
     }
 }
