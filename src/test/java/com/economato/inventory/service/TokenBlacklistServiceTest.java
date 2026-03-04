@@ -9,6 +9,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import com.economato.inventory.repository.RevokedTokenRepository;
+
 import java.time.Duration;
 import java.util.Date;
 import java.util.Locale;
@@ -32,9 +34,12 @@ class TokenBlacklistServiceTest {
     @Mock
     private Cache<String, Locale> tokenLocaleCache;
 
+    @Mock
+    private RevokedTokenRepository revokedTokenRepository;
+
     @BeforeEach
     void setUp() {
-        tokenBlacklistService = new RedisTokenBlacklistService(redisTemplate, tokenLocaleCache);
+        tokenBlacklistService = new RedisTokenBlacklistService(redisTemplate, revokedTokenRepository, tokenLocaleCache);
     }
 
     @Test
@@ -51,6 +56,7 @@ class TokenBlacklistServiceTest {
                 eq("revoked"),
                 any(Duration.class));
         verify(tokenLocaleCache).invalidate(token);
+        verify(revokedTokenRepository).save(any());
     }
 
     @Test
@@ -65,6 +71,7 @@ class TokenBlacklistServiceTest {
     void testIsBlacklistedReturnsFalse() {
         String token = "non.blacklisted.token";
         when(redisTemplate.hasKey("token_blacklist:" + token)).thenReturn(false);
+        when(revokedTokenRepository.existsByToken(token)).thenReturn(false);
 
         assertFalse(tokenBlacklistService.isBlacklisted(token));
     }
