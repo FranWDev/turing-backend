@@ -48,7 +48,6 @@ class CircuitBreakerHealthCheckerTest {
     @Mock
     private CircuitBreaker kafkaCircuitBreaker;
 
-    @InjectMocks
     private CircuitBreakerHealthChecker healthChecker;
 
     @BeforeEach
@@ -56,23 +55,45 @@ class CircuitBreakerHealthCheckerTest {
         lenient().when(circuitBreakerRegistry.circuitBreaker("db")).thenReturn(dbCircuitBreaker);
         lenient().when(circuitBreakerRegistry.circuitBreaker("redis")).thenReturn(redisCircuitBreaker);
         lenient().when(circuitBreakerRegistry.circuitBreaker("kafka")).thenReturn(kafkaCircuitBreaker);
+        
+        // Manually create the healthChecker with properly injected dependencies
+        healthChecker = new CircuitBreakerHealthChecker(
+                circuitBreakerRegistry,
+                writerDataSource,
+                readerDataSource,
+                redisConnectionFactory,
+                kafkaTemplate
+        );
     }
 
     @Test
-    void testProactiveDatabaseHealthCheck_WhenBothDatabasesHealthy_ShouldNotOpenCircuitBreaker() throws SQLException {
+    void testProactiveDatabaseHealthCheck_WhenWriterHealthyReaderDown_ShouldNotOpenCircuitBreaker() throws SQLException {
         lenient().when(dbCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
         
         Connection writerConn = mock(Connection.class);
-        Connection readerConn = mock(Connection.class);
+        lenient().doNothing().when(writerConn).close();
+        lenient().when(writerConn.isValid(2)).thenReturn(true);
         
         lenient().when(writerDataSource.getConnection()).thenReturn(writerConn);
-        lenient().when(readerDataSource.getConnection()).thenReturn(readerConn);
-        lenient().when(writerConn.isValid(2)).thenReturn(true);
-        lenient().when(readerConn.isValid(2)).thenReturn(true);
+        lenient().when(readerDataSource.getConnection()).thenThrow(new SQLException("Reader is down"));
 
         healthChecker.proactiveDbHealthCheck();
 
+        // Should NOT open CB when only reader is down - fallback to writer handles it
         verify(dbCircuitBreaker, never()).onError(anyLong(), any(), any());
+    }
+
+    @Test
+    void testProactiveDatabaseHealthCheck_WhenWriterDown_ShouldOpenCircuitBreaker() throws SQLException {
+        lenient().when(dbCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
+        
+        lenient().when(writerDataSource.getConnection()).thenThrow(new SQLException("Writer is down"));
+        lenient().when(readerDataSource.getConnection()).thenThrow(new SQLException("Both down"));
+
+        healthChecker.proactiveDbHealthCheck();
+
+        // Should open CB when writer is down - this is critical
+        verify(dbCircuitBreaker, times(1)).onError(anyLong(), any(), any());
     }
 
     @Test
@@ -81,6 +102,8 @@ class CircuitBreakerHealthCheckerTest {
         
         Connection writerConn = mock(Connection.class);
         Connection readerConn = mock(Connection.class);
+        lenient().doNothing().when(writerConn).close();
+        lenient().doNothing().when(readerConn).close();
         
         lenient().when(writerDataSource.getConnection()).thenReturn(writerConn);
         lenient().when(readerDataSource.getConnection()).thenReturn(readerConn);
@@ -114,6 +137,8 @@ class CircuitBreakerHealthCheckerTest {
         Connection writerConn = mock(Connection.class);
         Connection readerConn = mock(Connection.class);
         RedisConnection redisConn = mock(RedisConnection.class);
+        lenient().doNothing().when(writerConn).close();
+        lenient().doNothing().when(readerConn).close();
         
         lenient().when(writerDataSource.getConnection()).thenReturn(writerConn);
         lenient().when(readerDataSource.getConnection()).thenReturn(readerConn);

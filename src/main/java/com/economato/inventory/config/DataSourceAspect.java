@@ -50,14 +50,9 @@ public class DataSourceAspect {
                             log.warn("Read operation failed on READER datasource, retrying with WRITER as fallback: {}", 
                                     t.getMessage());
                             
-                            // Register the error in the circuit breaker before retrying
-                            try {
-                                circuitBreaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, 
-                                        t instanceof Exception ? (Exception) t : new RuntimeException(t));
-                            } catch (Exception e) {
-                                log.warn("Failed to record error in circuit breaker: {}", e.getMessage());
-                            }
-                            
+                            // For READER failures, we do NOT register in the circuit breaker
+                            // We silently fallback to WRITER without opening the main DB circuit breaker
+                            // This allows reads to continue even if the replica is down
                             return retryWithWriter(pjp);
                         }
                         

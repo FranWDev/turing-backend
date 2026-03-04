@@ -52,6 +52,8 @@ public class CircuitBreakerHealthChecker {
     /**
      * Aggressive proactive health check - runs every 3 seconds
      * Detects failures early and opens circuit breaker immediately
+     * Only opens the circuit breaker if WRITER (primary) fails.
+     * If READER (replica) fails, automatic fallback to WRITER handles it.
      */
     @Scheduled(fixedDelay = 3000)
     public void proactiveDbHealthCheck() {
@@ -66,20 +68,20 @@ public class CircuitBreakerHealthChecker {
         boolean writerHealthy = testDatabaseConnection(writerDataSource, "WRITER", 2);
         boolean readerHealthy = testDatabaseConnection(readerDataSource, "READER", 2);
 
+        // ONLY open the circuit breaker if WRITER (primary) is down
+        // If READER is down, the automatic fallback will handle it without opening the CB
         if (!writerHealthy) {
-            log.warn("Writer database is DOWN! Opening circuit breaker immediately");
+            log.warn("PRIMARY DATABASE (WRITER) IS DOWN! Opening circuit breaker immediately");
             RuntimeException error = new org.hibernate.exception.JDBCConnectionException(
                     "Writer database connection failed",
                     new java.sql.SQLException("Health check failed")
             );
             circuitBreaker.onError(0, TimeUnit.MILLISECONDS, error);
         } else if (!readerHealthy) {
-            log.warn("Reader database (replica) is DOWN! Opening circuit breaker immediately");
-            RuntimeException error = new org.hibernate.exception.JDBCConnectionException(
-                    "Reader database connection failed",
-                    new java.sql.SQLException("Health check failed")
-            );
-            circuitBreaker.onError(0, TimeUnit.MILLISECONDS, error);
+            // READER is down but WRITER is healthy
+            // The application will continue to work because of automatic fallback
+            // No need to open the circuit breaker
+            log.warn("REPLICA DATABASE (READER) IS DOWN, but PRIMARY (WRITER) is healthy - using automatic fallback");
         }
     }
 
